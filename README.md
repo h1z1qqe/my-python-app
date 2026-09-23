@@ -1,320 +1,141 @@
-# Pipeline CI на Go в GitHub Actions
+cat > README.md <<'MDEOF'
+# 🐍 my-python-app
 
-[![CI for Go App](https://github.com/h1z1qqe/my-go-app/actions/workflows/ci.yml/badge.svg)](https://github.com/h1z1qqe/my-go-app/actions/workflows/ci.yml)
+[![CI](https://github.com/h1z1qqe/my-python-app/actions/workflows/ci.yml/badge.svg)](https://github.com/h1z1qqe/my-python-app/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.9--3.12-3776AB?logo=python&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![Codespaces](https://img.shields.io/badge/built%20in-GitHub%20Codespaces-181717?logo=github&logoColor=white)
 
----
+> Учебный проект: Python-приложение с CI-пайплайном в **GitHub Actions** —
+> линтер **flake8**, тесты **pytest** на матрице из 4 версий Python и сборка **Docker-образа**.
+> Вся разработка выполнена в **GitHub Codespaces** — без установки Python и Docker на локальную машину.
 
-## Цель работы
+## ✨ Что проверяет CI
 
-**Цель** — учебный пример: простой проект, который можно склонировать, настроить и убедиться, что приложение работает в контейнере на **Go**, а **GitHub Actions** выполняет CI-пайплайн.
+| Job | Что делает |
+|---|---|
+| **Lint & Test** ×4 (Python 3.9 / 3.10 / 3.11 / 3.12) | строгий прогон `flake8` → мягкий прогон `flake8` → тесты `pytest` |
+| **Build Docker Image (no push)** | после успешных тестов собирает Docker-образ на раннере GitHub (только пуши в `main`) |
 
-В ходе работы я научился:
+## 🗂 Структура проекта
 
-- Настраивать **CI** для **Go**-проектов
-- Контейнеризировать приложения с помощью **Docker**
-- Собирать **Docker**-образ
-- Сохранять артефакты для локального использования
-
-**Go** (Golang) — это компилируемый, многопоточный язык программирования от **Google** с открытым исходным кодом, созданный для разработки высокопроизводительных веб-сервисов, микросервисов и облачных инфраструктур. Он сочетает синтаксис, похожий на **C**, с простотой и высокой скоростью выполнения.
-
----
-
-## Выполнение работы
-
-### 1. Создание репозитория и структуры проекта
-
-На **GitHub** был создан новый публичный репозиторий `my-go-app` с файлом `README.md`.
-
-Для работы над проектом я использовал **GitHub Codespaces** — облачную среду разработки, которая позволяет писать код и выполнять команды прямо в браузере, без необходимости устанавливать что-либо на локальный компьютер. Все дальнейшие действия выполнялись в терминале Codespaces.
-
-Была создана следующая структура проекта:
-
-```
-my-go-app/
+~~~text
+my-python-app/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml
-├── main.go
-├── sum.go
-├── sum_test.go
+│       └── ci.yml        # GitHub Actions workflow
+├── img/                  # скриншоты отчёта
+├── myapp/
+│   ├── __init__.py       # маркер пакета
+│   └── app.py            # функция add() + точка входа
+├── tests/
+│   └── test_app.py       # тесты pytest
+├── requirements.txt      # зависимости (pytest, flake8)
+├── setup.py              # установка пакета в dev-режиме
 ├── Dockerfile
 └── README.md
-```
+~~~
 
-Структуру проекта можно создать одной **bash**-командой:
+## 🛠 Ход работы (GitHub Codespaces)
 
-```shell
-mkdir -p .github/workflows && \
-touch .github/workflows/ci.yml \
-      main.go sum.go sum_test.go \
-      Dockerfile README.md
-```
+### Шаг 1 — репозиторий и Codespace
+Создан публичный репозиторий `my-python-app` с README, затем открыт Codespace:
+**Code → Codespaces → Create codespace on main**. Python, pip, Docker и git уже предустановлены.
 
-### 2. Инициализация Go-модуля
+### Шаг 2 — структура проекта
 
-Так как **Go** в моей ОС не был установлен, я использовал **Docker** для инициализации модуля:
-
-**Любой Unix (включая Codespaces):**
+~~~bash
+mkdir -p .github/workflows myapp tests && \
+touch .github/workflows/ci.yml myapp/__init__.py myapp/app.py tests/test_app.py setup.py requirements.txt Dockerfile README.md
+~~~
 
-```shell
-docker run --rm -v "$(pwd):/app" -w /app golang:1.22-alpine go mod init my-go-app
-```
+### Шаг 3 — код приложения
+`myapp/app.py` — функция `add(a, b)` и `main()` с приветствием.
+`setup.py` с `find_packages()` — установка пакета в development-режиме,
+чтобы импорт `myapp` работал из любой директории (важно для CI).
 
-Затем для удовлетворения зависимостей:
-
-```shell
-docker run --rm -v "$(pwd):/app" -w /app golang:1.22-alpine go mod tidy
-```
-
-### 3. Файл `sum.go` (простая функция)
+### Шаг 4 — тесты
+`tests/test_app.py` — три проверки функции `add()`: `2+3=5`, `-1+1=0`, `0+0=0`.
 
-```go
-package main
-
-func Sum(a, b int) int {
-    return a + b
-}
-```
-
-### 4. Файл `main.go`
-
-```go
-package main
-
-import "fmt"
-
-func main() {
-    fmt.Println("Hello from Go app!")
-    fmt.Println("2 + 3 =", Sum(2, 3))
-}
-```
-
-### 5. Файл `sum_test.go` (тесты)
-
-```go
-package main
-
-import "testing"
-
-func TestSum(t *testing.T) {
-    tests := []struct {
-        a, b, expected int
-    }{
-        {2, 3, 5},
-        {-1, 1, 0},
-        {0, 0, 0},
-    }
-    for _, tt := range tests {
-        result := Sum(tt.a, tt.b)
-        if result != tt.expected {
-            t.Errorf("Sum(%d, %d) = %d; want %d", tt.a, tt.b, result, tt.expected)
-        }
-    }
-}
-```
-
-### 6. Файл `Dockerfile`
-
-```dockerfile
-FROM golang:1.22-alpine AS builder
-WORKDIR /app
-COPY go.mod .
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o my-app .
-
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/my-app .
-CMD ["./my-app"]
-```
-
-**Разбор Dockerfile:**
+### Шаг 5 — CI workflow
+`.github/workflows/ci.yml`:
+- **матрица из 4 версий Python** — код проверяется на 3.9, 3.10, 3.11 и 3.12 одновременно;
+- два прогона `flake8`: строгий (только критичные ошибки) и мягкий (со сложностью и длиной строк);
+- `pip install -e .` — пакет ставится в dev-режиме прямо в job'е;
+- job `docker-build` зависит от тестов (`needs: test`) и запускается только при пуше в `main`.
 
-- **Стадия `builder`** — использует образ `golang:1.22-alpine` для сборки приложения.
-- `COPY go.mod .` и `RUN go mod download` — копируют файл зависимостей и скачивают их.
-- `RUN CGO_ENABLED=0 GOOS=linux go build -o my-app .` — компилирует бинарный файл с отключённым CGO для статической сборки.
-- **Стадия финального образа** — использует лёгкий образ `alpine:latest`, устанавливает сертификаты и копирует готовый бинарник.
-- `CMD ["./my-app"]` — запускает приложение при старте контейнера.
+### Шаг 6 — линтер и тесты локально
 
-### 7. Файл GitHub Actions CI `.github/workflows/ci.yml`
+~~~bash
+pip install -r requirements.txt -q && pip install -e . -q
+flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+pytest -v
+~~~
 
-```yaml
-name: CI for Go App
+~~~text
+tests/test_app.py::test_add PASSED                           [100%]
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+============================== 1 passed ===============================
+~~~
 
-jobs:
-  test:
-    name: Lint & Test
-    runs-on: ubuntu-latest
+flake8 завершился без замечаний (пустой вывод = код чист).
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+![Локальные тесты pytest](img/1_pytest_local.png)
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true   # кэширует go mod
+### Шаг 7 — сборка Docker-образа
 
-      - name: Download dependencies
-        run: go mod download
+~~~bash
+docker build -t my-python-app:test .
+docker run --rm my-python-app:test
+~~~
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          args: --timeout=5m
+~~~text
+Hello from my Python app!
+~~~
 
-      - name: Run tests with coverage
-        run: go test -v -coverprofile=coverage.out ./...
+![Сборка и запуск контейнера](img/2_docker_run.png)
 
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.out
+### Шаг 8 — пуш и результат в Actions
 
-  docker-build:
-    name: Build Docker Image (no push)
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+~~~bash
+git add -A && git commit -m "Add Python app with CI" && git push
+~~~
 
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -t my-go-app:test .
-```
+Все 4 job'а матрицы и сборка Docker-образа — зелёные ✅
 
-**Разбор workflow:**
+![Результат в GitHub Actions](img/3_actions_summary.png)
 
-- **Job `test`** — выполняет линтинг и тестирование:
-  - `actions/checkout@v4` — скачивает код репозитория.
-  - `actions/setup-go@v5` с `cache: true` — устанавливает Go 1.22 и включает встроенное кэширование зависимостей.
-  - `go mod download` — скачивает зависимости.
-  - `golangci-lint-action@v6` — запускает линтер с таймаутом 5 минут.
-  - `go test -v -coverprofile=coverage.out ./...` — запускает тесты с формированием отчёта о покрытии.
-  - `actions/upload-artifact@v4` — сохраняет файл `coverage.out` как артефакт.
+![Логи тестов в CI](img/4_actions_pytest_log.png)
 
-- **Job `docker-build`** — собирает **Docker**-образ без публикации:
-  - Запускается только после успешного завершения job `test` (`needs: test`).
-  - Выполняется только при пуше в ветку `main`.
-  - `docker build -t my-go-app:test .` — собирает образ для проверки.
+## 🚀 Быстрый старт
 
-### 8. Запуск локальных тестов через Docker
+~~~bash
+git clone https://github.com/h1z1qqe/my-python-app.git
+cd my-python-app
+pip install -r requirements.txt && pip install -e .
+pytest -v
+python myapp/app.py
 
-Чтобы убедиться, что код приложения работает, я запустил тесты локально через **Docker**:
+# или через Docker:
+docker build -t my-python-app:test . && docker run --rm my-python-app:test
+~~~
 
-```shell
-docker run --rm -v "$(pwd):/app" -w /app golang:1.22-alpine go test ./...
-```
+## ⚙️ Как устроен pipeline
 
-Если всё нормально, тесты показывают что-то вроде:
+~~~text
+push / PR → Lint & Test ×4 (3.9 | 3.10 | 3.11 | 3.12): flake8 → pytest
+                └── success + push в main → Build Docker Image (no push)
+~~~
 
-```shell
-ok      my-go-app       0.002s
-```
+## 🧰 Технологии
 
-### 9. Сборка бинарного файла локально
+`Python 3.9–3.12` · `GitHub Actions` · `flake8` · `pytest` · `Docker` · `GitHub Codespaces`
 
-```shell
-docker run --rm -v "$(pwd):/app" -w /app golang:1.22-alpine go build -o my-app .
-```
+## ✅ Выводы
 
-Бинарник программы на **Go** появляется в текущей папке. Запустить его можно через **Docker**:
-
-```shell
-docker run --rm -v "$(pwd):/app" -w /app alpine ./my-app
-```
-
-Если всё нормально, вывод будет таким:
-
-```shell
-Hello from Go app!
-2 + 3 = 5
-```
-
-![Hello from my Go app!](/content/DevOps/CI_CD/img/6_workflow.png)
-
-### 10. Проверка сборки онлайн
-
-Я закоммитил и запушил файлы в ветку `main`:
-
-```shell
-git add .
-git commit -m "Добавлен CI workflow для Go-приложения"
-git push origin main
-```
-
-После пуша я перешёл на вкладку **Actions** в репозитории на **GitHub**. Там отобразился запущенный workflow. Через несколько минут загорелась **зелёная галочка** — все шаги прошли успешно.
-
-![Скриншот успешного запуска workflow](/content/DevOps/CI_CD/img/5_workflow.png)
-
-### 11. Проверка сборки Docker-образа локально
-
-Находясь в папке `my-go-app`, я выполнил сборку проекта в **Docker**-образ:
-
-```shell
-docker build -t my-go-app:latest .
-```
-
-Создание и запуск контейнера:
-
-```shell
-docker run --rm my-go-app:latest
-```
-
-Вывод:
-
-```shell
-Hello from Go app!
-2 + 3 = 5
-```
-
-![Hello from my Go app!](/content/DevOps/CI_CD/img/7_workflow.png)
-
-Опционально можно зайти в интерактивный режим контейнера для отладки:
-
-```shell
-docker run -it --rm my-go-app:latest /bin/sh
-```
-
-Получить информацию об ОС в контейнере:
-
-```shell
-cat /etc/os-release
-```
-
-![Информация об ОС в контейнере](/content/DevOps/CI_CD/img/8_workflow.png)
-
-Выйти из контейнера:
-
-```shell
-exit
-```
-
----
-
-## Использованные инструменты
-
-- **GitHub** — платформа для хостинга репозиториев.
-- **GitHub Codespaces** — облачная среда разработки.
-- **GitHub Actions** — система CI/CD для автоматизации сборки, тестирования и развёртывания.
-- **Go (Golang)** — компилируемый язык программирования для высокопроизводительных сервисов.
-- **Docker** — платформа контейнеризации приложений.
-- **YAML** — язык разметки для конфигурационных файлов.
-- **Markdown** — язык разметки для оформления документации.
-
----
-
-## Заключение
-
-В ходе работы я успешно настроил CI-пайплайн для **Go**-приложения с помощью **GitHub Actions**. Workflow автоматически запускается при пуше и создании pull request, выполняет линтинг, тестирование с отчётом о покрытии и сборку **Docker**-образа. Все шаги прошли успешно, что подтверждается зелёной галочкой на вкладке **Actions**. Я также освоил контейнеризацию **Go**-приложений с помощью **Docker** и научился сохранять артефакты для локального использования.
+- Настроил матричное тестирование: один workflow проверяет код сразу на 4 версиях Python.
+- Освоил двухуровневый линт: строгий прогон ловит критичные ошибки, мягкий — стиль кода.
+- Разобрался, зачем нужен `setup.py` и установка в dev-режиме для корректных импортов в CI.
+- Собрал Docker-образ на раннере GitHub без локального Docker.
+- GitHub Codespaces закрывает всю инфраструктуру: редактор, терминал, Docker — в браузере.
+MDEOF
