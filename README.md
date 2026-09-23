@@ -1,4 +1,3 @@
-cat > README.md <<'MDEOF'
 # 🐍 my-python-app
 
 [![CI](https://github.com/h1z1qqe/my-python-app/actions/workflows/ci.yml/badge.svg)](https://github.com/h1z1qqe/my-python-app/actions/workflows/ci.yml)
@@ -80,7 +79,7 @@ tests/test_app.py::test_add PASSED                           [100%]
 
 flake8 завершился без замечаний (пустой вывод = код чист).
 
-![Локальные тесты pytest](img/1_pytest_local.png)
+![Локальные тесты pytest](1_pytest_local.png)
 
 ### Шаг 7 — сборка Docker-образа
 
@@ -93,7 +92,7 @@ docker run --rm my-python-app:test
 Hello from my Python app!
 ~~~
 
-![Сборка и запуск контейнера](img/2_docker_run.png)
+![Сборка и запуск контейнера](2_docker_run.png)
 
 ### Шаг 8 — пуш и результат в Actions
 
@@ -103,9 +102,9 @@ git add -A && git commit -m "Add Python app with CI" && git push
 
 Все 4 job'а матрицы и сборка Docker-образа — зелёные ✅
 
-![Результат в GitHub Actions](img/3_actions_summary.png)
+![Результат в GitHub Actions](3_actions_summary.png)
 
-![Логи тестов в CI](img/4_actions_pytest_log.png)
+![Логи тестов в CI](4_actions_pytest_log.png)
 
 ## 🚀 Быстрый старт
 
